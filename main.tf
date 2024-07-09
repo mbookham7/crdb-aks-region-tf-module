@@ -11,7 +11,7 @@ resource "azurerm_resource_group" "mb-crdb-multi-region" {
   location = var.location_1
 }
 
-# Create VNET in first region
+# Create VNET
 
 resource "azurerm_virtual_network" "region_1" {
   name                = "${var.prefix}-${var.location_1}"
@@ -20,7 +20,7 @@ resource "azurerm_virtual_network" "region_1" {
   address_space       = var.location_1_vnet_address_space
 }
 
-# Create subnet in first region
+# Create subnet
 
 resource "azurerm_subnet" "internal-region_1" {
   name                 = "internal-${var.location_1}"
@@ -42,7 +42,7 @@ resource "azurerm_role_assignment" "network_contributor_region_1" {
   principal_id         = azurerm_user_assigned_identity.aks.principal_id
 }
 
-### Region 1 AKS Cluster Creation
+### AKS Cluster Creation
 resource "azurerm_kubernetes_cluster" "aks_region_1" {
   name                = "${var.prefix}-k8s-${var.location_1}"
   location            = var.location_1
@@ -178,8 +178,6 @@ resource "local_file" "client_cert" {
 
 # Create Certificate and key for nodes in each region
 
-# Region_1
-
 # Create private key for server certificate 
 resource "tls_private_key" "node_cert_region_1" {
   algorithm = "RSA"
@@ -244,9 +242,7 @@ resource "local_file" "node_cert_region_1_cert" {
 
 # Upload CA Cert and Key as a Secret to each cluster
 
-# Region 1
 resource "kubernetes_secret_v1" "cockroachdb_client_root_region_1" {
-  provider = kubernetes.region_1
   metadata {
     name = "cockroachdb.client.root"
     namespace = var.location_1
@@ -261,9 +257,7 @@ resource "kubernetes_secret_v1" "cockroachdb_client_root_region_1" {
 
 # Upload Node Cert and Key as a Secret to each cluster
 
-# Region 1
 resource "kubernetes_secret_v1" "cockroachdb_node_region_1" {
-  provider = kubernetes.region_1
   metadata {
     name = "cockroachdb.node"
     namespace = var.location_1
@@ -285,7 +279,6 @@ resource "kubernetes_secret_v1" "cockroachdb_node_region_1" {
 # Create namespace in first region
 
 resource "kubernetes_namespace_v1" "ns_region_1" {
-  provider = kubernetes.region_1
   metadata {
     name = var.location_1
 
@@ -304,7 +297,6 @@ resource "kubernetes_namespace_v1" "ns_region_1" {
 # Region 1
 
 resource "kubernetes_service_account_v1" "serviceaccount_cockroachdb_region_1" {
-  provider = kubernetes.region_1
   depends_on = [kubernetes_namespace_v1.ns_region_1]
   metadata {
     name = "cockroachdb"
@@ -317,7 +309,6 @@ resource "kubernetes_service_account_v1" "serviceaccount_cockroachdb_region_1" {
 }
 
 resource "kubernetes_role_v1" "role_cockroachdb_region_1" {
-  provider = kubernetes.region_1
   depends_on = [kubernetes_namespace_v1.ns_region_1]
   metadata {
     name = "cockroachdb"
@@ -335,7 +326,6 @@ resource "kubernetes_role_v1" "role_cockroachdb_region_1" {
 }
 
 resource "kubernetes_cluster_role_v1" "clusterrole_cockroachdb_region_1" {
-  provider = kubernetes.region_1
   depends_on = [kubernetes_namespace_v1.ns_region_1] 
   metadata {
     name = "cockroachdb"
@@ -352,7 +342,6 @@ resource "kubernetes_cluster_role_v1" "clusterrole_cockroachdb_region_1" {
 }
 
 resource "kubernetes_role_binding_v1" "rolebinding_cockroachdb_region_1" {
-  provider = kubernetes.region_1
   depends_on = [kubernetes_namespace_v1.ns_region_1]
   metadata {
     name      = "cockroachdb"
@@ -376,7 +365,6 @@ resource "kubernetes_role_binding_v1" "rolebinding_cockroachdb_region_1" {
 }
 
 resource "kubernetes_cluster_role_binding_v1" "clusterrolebinding_cockroachdb_region_1" {
-  provider = kubernetes.region_1
   depends_on = [kubernetes_namespace_v1.ns_region_1]
   metadata {
     name = "cockroachdb"
@@ -402,7 +390,6 @@ resource "kubernetes_cluster_role_binding_v1" "clusterrolebinding_cockroachdb_re
 }
 
 resource "kubernetes_service" "service_cockroachdb_public_region_1" {
-  provider = kubernetes.region_1
   depends_on = [kubernetes_namespace_v1.ns_region_1]
   metadata {
     name = "cockroachdb-public"
@@ -429,7 +416,6 @@ resource "kubernetes_service" "service_cockroachdb_public_region_1" {
 }
 
 resource "kubernetes_service" "service_cockroachdb_region_1" {
-  provider = kubernetes.region_1
   depends_on = [kubernetes_namespace_v1.ns_region_1]
   metadata {
     name = "cockroachdb"
@@ -464,7 +450,6 @@ resource "kubernetes_service" "service_cockroachdb_region_1" {
 }
 
 resource "kubernetes_pod_disruption_budget_v1" "poddisruptionbudget_cockroachdb_budget_region_1" {
-  provider = kubernetes.region_1
   depends_on = [kubernetes_namespace_v1.ns_region_1]
   metadata {
     name = "cockroachdb-budget"
@@ -484,7 +469,6 @@ resource "kubernetes_pod_disruption_budget_v1" "poddisruptionbudget_cockroachdb_
 }
 
 resource "kubernetes_stateful_set_v1" "statefulset_region_1_cockroachdb" {
-  provider = kubernetes.region_1
   depends_on = [kubernetes_namespace_v1.ns_region_1]
   metadata {
     annotations = {
@@ -684,7 +668,6 @@ resource "kubernetes_stateful_set_v1" "statefulset_region_1_cockroachdb" {
 ### Expose the Admin UI externally.
 
 resource "kubernetes_service" "service_cockroachdb_ui_region_1" {
-  provider = kubernetes.region_1
   depends_on = [kubernetes_namespace_v1.ns_region_1]
   metadata {
     name = "cockroachdb-adminui"
@@ -718,7 +701,6 @@ resource "time_sleep" "wait_120_seconds" {
 
 resource "kubernetes_job_v1" "cockroachdb_init_job" {
   depends_on = [time_sleep.wait_120_seconds]
-  provider = kubernetes.region_1
     metadata {
       name = "cockroachdb-client-secure"
 
